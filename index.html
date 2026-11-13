@@ -289,7 +289,7 @@
         <div class="bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-5 my-8">
             <div class="flex justify-between items-center pb-3 border-b border-darkBorder">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <i data-lucide="cloud" class="w-5 h-5 text-purple-400"></i> Синхронизация данных
+                    <i data-lucide="cloud" class="w-5 h-5 text-purple-400"></i> Синхронизация между устройствами
                 </h3>
                 <button onclick="closeSyncModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-darkInput transition">
                     <i data-lucide="x" class="w-5 h-5"></i>
@@ -297,41 +297,75 @@
             </div>
 
             <div class="space-y-4 text-xs text-gray-300">
-                <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
-                    <p class="font-semibold text-emerald-400 flex items-center gap-1.5">
-                        <i data-lucide="check-circle-2" class="w-4 h-4"></i> Автосинхронизация активна
+                <!-- Fast Sync Room ID Section -->
+                <div class="p-4 rounded-xl bg-gradient-to-br from-purple-900/30 to-indigo-900/30 border border-purple-500/30 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <p class="font-bold text-white text-sm flex items-center gap-1.5">
+                            <i data-lucide="smartphone" class="w-4 h-4 text-purple-400"></i> Быстрая синхронизация (Без регистрации)
+                        </p>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Live</span>
+                    </div>
+                    <p class="text-gray-300 leading-relaxed">
+                        Скопируйте <b>Код синхронизации</b> этого устройства и введите его на телефоне или другом ПК — все изменения будут появляться мгновенно.
                     </p>
-                    <p class="text-gray-300">Ваша библиотека автоматически сохраняется в облаке и синхронизируется между устройствами в реальном времени без дополнительной настройки.</p>
+
+                    <!-- Current Sync Code Display -->
+                    <div class="bg-darkBg/80 border border-darkBorder rounded-xl p-2.5 flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] uppercase tracking-wider text-gray-400 block">Код этого устройства:</span>
+                            <code id="currentSyncCodeDisplay" class="text-base font-black tracking-widest text-purple-300">CINE-...</code>
+                        </div>
+                        <button type="button" onclick="copyCurrentSyncCode()" class="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Копировать
+                        </button>
+                    </div>
+
+                    <!-- Connect to Another Device Code -->
+                    <div class="pt-1 space-y-1.5">
+                        <label class="block text-[11px] font-semibold text-gray-300">Подключиться к библиотеке другого устройства:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="joinSyncCodeInput" placeholder="Введите код, напр. CINE-A7K9" class="flex-grow bg-darkInput border border-darkBorder rounded-xl px-3 py-2 text-gray-100 text-xs uppercase tracking-wider font-mono focus:outline-none focus:border-purple-500">
+                            <button type="button" onclick="joinSyncRoom()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition shrink-0">
+                                Объединить
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="bg-darkInput/60 p-3 rounded-xl border border-darkBorder space-y-2">
-                    <p class="font-semibold text-purple-300">Дополнительно: свой сервер Supabase</p>
-                    <p class="text-gray-400">При желании вы можете подключить собственную базу данных Supabase для резервного копирования:</p>
-                    <ol class="list-decimal list-inside space-y-1 text-gray-400">
-                        <li>Создайте таблицу <code class="bg-darkInput px-1 py-0.5 rounded text-white">cinehub_store</code> с колонками <code class="bg-darkInput px-1 py-0.5 rounded text-white">id</code> (text, PK) и <code class="bg-darkInput px-1 py-0.5 rounded text-white">data</code> (jsonb).</li>
-                        <li>Вставьте <b>Project URL</b> и <b>anon/public API Key</b> ниже.</li>
-                    </ol>
-                </div>
-
-                <div class="space-y-3 pt-1">
-                    <div>
-                        <label class="block font-semibold text-gray-400 uppercase tracking-wider mb-1">Supabase Project URL</label>
-                        <input type="text" id="syncUrlInput" placeholder="https://xyzcompany.supabase.co" class="w-full bg-darkInput border border-darkBorder rounded-xl px-3.5 py-2 text-gray-100 text-sm focus:outline-none focus:border-purple-500">
+                <!-- Optional Custom Supabase Section -->
+                <details class="bg-darkInput/50 rounded-xl border border-darkBorder group">
+                    <summary class="p-3 cursor-pointer font-semibold text-gray-300 hover:text-white flex items-center justify-between list-none">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="database" class="w-4 h-4 text-purple-400"></i> Дополнительно: свой сервер Supabase
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180"></i>
+                    </summary>
+                    <div class="p-3 pt-0 space-y-3 border-t border-darkBorder/60 mt-1">
+                        <p class="text-gray-400 pt-2">При желании подключите собственную таблицу <code class="bg-darkInput px-1 py-0.5 rounded text-white">cinehub_store</code> (колонки <code class="bg-darkInput px-1 py-0.5 rounded text-white">id</code> text PK, <code class="bg-darkInput px-1 py-0.5 rounded text-white">data</code> jsonb):</p>
+                        <div class="space-y-2.5">
+                            <div>
+                                <label class="block font-semibold text-gray-400 uppercase tracking-wider mb-1">Supabase Project URL</label>
+                                <input type="text" id="syncUrlInput" placeholder="https://xyzcompany.supabase.co" class="w-full bg-darkInput border border-darkBorder rounded-xl px-3.5 py-2 text-gray-100 text-xs focus:outline-none focus:border-purple-500">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-gray-400 uppercase tracking-wider mb-1">Supabase Anon Key</label>
+                                <input type="password" id="syncKeyInput" placeholder="eyJhbGciOiJIUzI1Ni..." class="w-full bg-darkInput border border-darkBorder rounded-xl px-3.5 py-2 text-gray-100 text-xs focus:outline-none focus:border-purple-500">
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-1">
+                            <button type="button" onclick="disableCloudSync()" class="px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 transition">Сбросить</button>
+                            <button type="button" onclick="saveAndConnectSync()" class="bg-purple-600 hover:bg-purple-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition">Подключить</button>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block font-semibold text-gray-400 uppercase tracking-wider mb-1">Supabase Anon Key</label>
-                        <input type="password" id="syncKeyInput" placeholder="eyJhbGciOiJIUzI1Ni..." class="w-full bg-darkInput border border-darkBorder rounded-xl px-3.5 py-2 text-gray-100 text-sm focus:outline-none focus:border-purple-500">
-                    </div>
-                </div>
+                </details>
 
                 <div id="syncStatusBadge" class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center font-medium text-emerald-400">
-                    Статус: Встроенная облачная синхронизация 🟢
+                    Статус: Подключение к облаку...
                 </div>
             </div>
 
-            <div class="pt-3 border-t border-darkBorder flex justify-end space-x-3">
-                <button type="button" onclick="disableCloudSync()" class="px-4 py-2 text-sm text-rose-400 hover:text-rose-300 transition">Сбросить Supabase</button>
-                <button type="button" onclick="saveAndConnectSync()" class="bg-purple-600 hover:bg-purple-500 text-white px-5 py-2 rounded-xl text-sm font-semibold transition">Подключить</button>
+            <div class="pt-2 border-t border-darkBorder flex justify-end">
+                <button type="button" onclick="closeSyncModal()" class="bg-darkInput hover:bg-darkBorder text-gray-200 px-5 py-2 rounded-xl text-sm font-semibold transition">Готово</button>
             </div>
         </div>
     </div>
@@ -556,137 +590,34 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Seed Initial Data
-        const defaultLibrary = [
-            {
-                id: "1",
-                title: "Дюна: Часть вторая",
-                type: "movie",
-                genre: "Фантастика",
-                rating: 9.1,
-                year: 2024,
-                runtime: 166,
-                episodes: 0,
-                status: "watched",
-                favorite: true,
-                collectionId: "c1",
-                description: "Пол Атрейдс объединяется с Чани и фременами, находясь на тропе мести заговорщикам, уничтожившим его семью.",
-                poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop",
-                reviews: [
-                    { id: "r1", user: "Киноман_99", rating: 10, text: "Визуальный и звуковой шедевр! Смотреть строго в IMAX.", date: "12 Окт 2024" }
-                ]
-            },
-            {
-                id: "2",
-                title: "Во все тяжкие",
-                type: "show",
-                genre: "Драма",
-                rating: 9.5,
-                year: 2008,
-                runtime: 48,
-                episodes: 62,
-                status: "watched",
-                favorite: true,
-                collectionId: "",
-                description: "Школьный учитель химии Уолтер Уайт узнает, что болен раком, и начинает заниматься изготовлением метамфетамина.",
-                poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop",
-                reviews: [
-                    { id: "r2", user: "Елена В.", rating: 9.5, text: "Лучший сериал всех времен. Финал пробрал до мурашек.", date: "05 Сен 2024" }
-                ]
-            },
-            {
-                id: "3",
-                title: "Разделение",
-                type: "show",
-                genre: "Триллер",
-                rating: 8.7,
-                year: 2022,
-                runtime: 50,
-                episodes: 9,
-                status: "watching",
-                favorite: false,
-                collectionId: "c2",
-                description: "Сотрудники Lumon Industries проходят процедуру «разделения», отделяющую их рабочие воспоминания от личных.",
-                poster: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=600&auto=format&fit=crop",
-                reviews: []
-            },
-            {
-                id: "4",
-                title: "Аркейн",
-                type: "show",
-                genre: "Анимация",
-                rating: 9.0,
-                year: 2021,
-                runtime: 40,
-                episodes: 18,
-                status: "watched",
-                favorite: true,
-                collectionId: "c1",
-                description: "История становления двух сестер Вай и Джинкс на фоне конфликта между процветающим Пилтовером и убогим Зауном.",
-                poster: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop",
-                reviews: [
-                    { id: "r3", user: "Кирилл", rating: 9, text: "Анимация и саундтрек невероятного уровня.", date: "01 Ноя 2024" }
-                ]
-            },
-            {
-                id: "5",
-                title: "Интерстеллар",
-                type: "movie",
-                genre: "Фантастика",
-                rating: 8.9,
-                year: 2014,
-                runtime: 169,
-                episodes: 0,
-                status: "plan",
-                favorite: false,
-                collectionId: "c1",
-                description: "Группа исследователей использует недавно обнаруженный пространственно-временной тоннель, чтобы обнулить ограничения человеческих путешествий.",
-                poster: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop",
-                reviews: []
-            }
-        ];
-
-        const defaultCollections = [
-            {
-                id: "c1",
-                title: "Подборка на осень 🍁",
-                description: "Уютная и глубокая фантастика для атмосферных вечеров",
-                privacy: "public",
-                inviteCode: "AUTUMN-2024"
-            },
-            {
-                id: "c2",
-                title: "Закрытый клуб: Психологические триллеры",
-                description: "Только по приглашению для друзей",
-                privacy: "private",
-                inviteCode: "SECRET-THRILL-88"
-            }
-        ];
-
-        // Global State
-        let library = [...defaultLibrary];
-        let collections = [...defaultCollections];
-        let currentStatusFilter = 'all';
-        let currentTypeFilter = 'all';
-        let currentGenreFilter = 'all';
-        let currentSearchQuery = '';
-        let genreChartInstance = null;
-        let statusChartInstance = null;
-        let activeDetailItemId = null;
-        let toastTimeout = null;
-
-        // Cloud Sync State (Firebase + optional Supabase)
+// ... existing code ... -->
+        // Cloud Sync State (Shared Room in Firestore + optional Supabase)
         let db = null;
         let auth = null;
         let currentUser = null;
-        let unsubscribeFirestore = null;
+        let unsubscribeRoom = null;
         let isApplyingRemoteUpdate = false;
+        let activeSyncCode = '';
         let supabaseClient = null;
         let supabaseConfig = { url: '', key: '' };
         const SYNC_ROW_ID = 'main_library_data';
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'cinehub-app';
+
+        function generateSyncCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let suffix = '';
+            for (let i = 0; i < 4; i++) {
+                suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return `CINE-${suffix}`;
+        }
+
+        function sanitizeSyncCode(raw) {
+            return raw.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        }
 
         // Init App
         window.addEventListener('DOMContentLoaded', async () => {
@@ -699,7 +630,7 @@
             await initFirebaseSync();
         });
 
-        // Built-in Seamless Cloud Sync (Firestore)
+        // Built-in Seamless Cross-Device Cloud Sync (Firestore Public Shared Room)
         async function initFirebaseSync() {
             try {
                 if (typeof __firebase_config === 'undefined' || !__firebase_config) {
@@ -721,67 +652,150 @@
                 currentUser = auth.currentUser;
                 if (!currentUser) return;
 
-                const userId = currentUser.uid;
-                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'cinehub_data', 'state');
+                // Determine Sync Room Code (check URL hash/query or user profile doc, or generate new)
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlSyncCode = urlParams.get('sync') ? sanitizeSyncCode(urlParams.get('sync')) : '';
 
-                unsubscribeFirestore = onSnapshot(
-                    docRef,
-                    async (snapshot) => {
-                        if (snapshot.exists()) {
-                            const remoteData = snapshot.data();
-                            if (remoteData) {
-                                isApplyingRemoteUpdate = true;
-                                if (Array.isArray(remoteData.library)) {
-                                    library = remoteData.library;
-                                }
-                                if (Array.isArray(remoteData.collections)) {
-                                    collections = remoteData.collections;
-                                }
-                                if (remoteData.supabaseConfig && remoteData.supabaseConfig.url && remoteData.supabaseConfig.key) {
-                                    const changed = supabaseConfig.url !== remoteData.supabaseConfig.url || supabaseConfig.key !== remoteData.supabaseConfig.key;
-                                    supabaseConfig = remoteData.supabaseConfig;
-                                    document.getElementById('syncUrlInput').value = supabaseConfig.url;
-                                    document.getElementById('syncKeyInput').value = supabaseConfig.key;
-                                    if (changed && !supabaseClient) {
-                                        connectSupabaseClient(supabaseConfig.url, supabaseConfig.key, false);
-                                    }
-                                }
-                                populateCollectionDropdown();
-                                render();
-                                isApplyingRemoteUpdate = false;
-                            }
-                        } else {
-                            // Initialize cloud document with seed data on first visit
-                            await saveDataToFirestore();
-                        }
-                        updateSyncStatusUI(
-                            supabaseClient
-                                ? 'Статус: Облако + Supabase активны 🟢'
-                                : 'Статус: Встроенная облачная синхронизация 🟢',
-                            true
-                        );
-                    },
-                    (error) => {
-                        console.error('Ошибка синхронизации с облаком:', error);
-                        updateSyncStatusUI('Статус: Ошибка соединения с облаком ⚠️', false);
-                    }
-                );
+                const userProfileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'cinehub_profile', 'settings');
+                const userProfileSnap = await getDoc(userProfileRef);
+
+                if (urlSyncCode && urlSyncCode.length >= 4) {
+                    activeSyncCode = urlSyncCode;
+                    await setDoc(userProfileRef, { syncCode: activeSyncCode, updatedAt: Date.now() }, { merge: true });
+                } else if (userProfileSnap.exists() && userProfileSnap.data().syncCode) {
+                    activeSyncCode = sanitizeSyncCode(userProfileSnap.data().syncCode);
+                } else {
+                    activeSyncCode = generateSyncCode();
+                    await setDoc(userProfileRef, { syncCode: activeSyncCode, updatedAt: Date.now() }, { merge: true });
+                }
+
+                document.getElementById('currentSyncCodeDisplay').innerText = activeSyncCode;
+                subscribeToSyncRoom(activeSyncCode, true);
             } catch (e) {
                 console.error('Ошибка инициализации облака:', e);
                 updateSyncStatusUI('Статус: Автономный режим', false);
             }
         }
 
-        async function saveDataToFirestore() {
-            if (!db || !currentUser || isApplyingRemoteUpdate) return;
+        function subscribeToSyncRoom(roomCode, createIfMissing = true) {
+            if (!db || !currentUser || !roomCode) return;
+
+            if (unsubscribeRoom) {
+                unsubscribeRoom();
+                unsubscribeRoom = null;
+            }
+
+            const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'cinehub_rooms', roomCode);
+
+            unsubscribeRoom = onSnapshot(
+                roomDocRef,
+                async (snapshot) => {
+                    if (snapshot.exists()) {
+                        const remoteData = snapshot.data();
+                        if (remoteData) {
+                            isApplyingRemoteUpdate = true;
+                            if (Array.isArray(remoteData.library)) {
+                                library = remoteData.library;
+                            }
+                            if (Array.isArray(remoteData.collections)) {
+                                collections = remoteData.collections;
+                            }
+                            if (remoteData.supabaseConfig && remoteData.supabaseConfig.url && remoteData.supabaseConfig.key) {
+                                const changed = supabaseConfig.url !== remoteData.supabaseConfig.url || supabaseConfig.key !== remoteData.supabaseConfig.key;
+                                supabaseConfig = remoteData.supabaseConfig;
+                                document.getElementById('syncUrlInput').value = supabaseConfig.url;
+                                document.getElementById('syncKeyInput').value = supabaseConfig.key;
+                                if (changed && !supabaseClient) {
+                                    connectSupabaseClient(supabaseConfig.url, supabaseConfig.key, false);
+                                }
+                            }
+                            populateCollectionDropdown();
+                            render();
+                            isApplyingRemoteUpdate = false;
+                        }
+                    } else if (createIfMissing) {
+                        await saveDataToFirestore();
+                    }
+
+                    updateSyncStatusUI(
+                        supabaseClient
+                            ? `Синхронизировано (${roomCode}) + Supabase 🟢`
+                            : `Синхронизация активна • Код: ${roomCode} 🟢`,
+                        true
+                    );
+                },
+                (error) => {
+                    console.error('Ошибка синхронизации комнаты:', error);
+                    updateSyncStatusUI('Статус: Ошибка соединения с облаком ⚠️', false);
+                }
+            );
+        }
+
+        async function joinSyncRoom() {
+            const rawInput = document.getElementById('joinSyncCodeInput').value;
+            const targetCode = sanitizeSyncCode(rawInput);
+
+            if (!targetCode || targetCode.length < 4) {
+                showToast('Некорректный код', 'Введите код синхронизации с другого устройства (например, CINE-A7K9).');
+                return;
+            }
+
+            if (targetCode === activeSyncCode) {
+                showToast('Уже подключено', `Это устройство уже использует код ${targetCode}.`);
+                return;
+            }
+
+            if (!db || !currentUser) {
+                showToast('Облако недоступно', 'Проверьте подключение к интернету и обновите страницу.');
+                return;
+            }
+
             try {
-                const userId = currentUser.uid;
-                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'cinehub_data', 'state');
-                await setDoc(docRef, {
+                const targetRoomRef = doc(db, 'artifacts', appId, 'public', 'data', 'cinehub_rooms', targetCode);
+                const targetSnap = await getDoc(targetRoomRef);
+
+                activeSyncCode = targetCode;
+                document.getElementById('currentSyncCodeDisplay').innerText = activeSyncCode;
+                document.getElementById('joinSyncCodeInput').value = '';
+
+                const userProfileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'cinehub_profile', 'settings');
+                await setDoc(userProfileRef, { syncCode: activeSyncCode, updatedAt: Date.now() }, { merge: true });
+
+                if (targetSnap.exists()) {
+                    subscribeToSyncRoom(activeSyncCode, false);
+                    showToast('Устройства объединены!', `Загружена библиотека по коду ${activeSyncCode}.`);
+                } else {
+                    await saveDataToFirestore();
+                    subscribeToSyncRoom(activeSyncCode, true);
+                    showToast('Код привязан!', `Создана общая синхронизация по коду ${activeSyncCode}.`);
+                }
+            } catch (e) {
+                console.error('Ошибка подключения по коду:', e);
+                showToast('Ошибка объединения', 'Не удалось подключиться к указанному коду.');
+            }
+        }
+
+        function copyCurrentSyncCode() {
+            if (!activeSyncCode) return;
+            const temp = document.createElement('input');
+            temp.value = activeSyncCode;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast('Код синхронизации скопирован!', `Введите ${activeSyncCode} на втором устройстве.`);
+        }
+
+        async function saveDataToFirestore() {
+            if (!db || !currentUser || !activeSyncCode || isApplyingRemoteUpdate) return;
+            try {
+                const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'cinehub_rooms', activeSyncCode);
+                await setDoc(roomDocRef, {
                     library,
                     collections,
                     supabaseConfig,
-                    updatedAt: Date.now()
+                    updatedAt: Date.now(),
+                    updatedBy: currentUser.uid
                 }, { merge: true });
             } catch (e) {
                 console.error('Ошибка сохранения в облако:', e);
@@ -1441,6 +1455,8 @@
         window.switchMainTab = switchMainTab;
         window.openSyncModal = openSyncModal;
         window.closeSyncModal = closeSyncModal;
+        window.copyCurrentSyncCode = copyCurrentSyncCode;
+        window.joinSyncRoom = joinSyncRoom;
         window.saveAndConnectSync = saveAndConnectSync;
         window.disableCloudSync = disableCloudSync;
         window.openAddModal = openAddModal;
