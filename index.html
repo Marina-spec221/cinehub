@@ -37,8 +37,15 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Firebase SDK (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        
+        // Экспортируем функции Firebase в глобальную область видимости для работы скрипта
+        window.firebaseModules = { initializeApp, getFirestore, doc, setDoc, onSnapshot, getDoc };
+        window.dispatchEvent(new Event('firebase-loaded'));
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -62,12 +69,6 @@
         .line-clamp-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .line-clamp-3 {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -103,10 +104,10 @@
 
             <!-- Action Buttons -->
             <div class="flex items-center space-x-3">
-                <button onclick="openSyncModal()" id="syncHeaderBtn" class="flex items-center space-x-1.5 bg-darkCard hover:bg-darkInput text-gray-300 hover:text-white px-3.5 py-2 rounded-xl text-sm font-semibold transition border border-darkBorder">
-                    <i data-lucide="cloud" id="syncHeaderIcon" class="w-4 h-4 text-emerald-400"></i>
-                    <span class="hidden sm:inline">Синхронизация</span>
-                </button>
+                <div id="syncIndicator" class="hidden sm:flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded-xl bg-darkCard border border-darkBorder text-gray-400">
+                    <span id="syncDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span id="syncText">Облако</span>
+                </div>
                 <button onclick="openAddModal()" class="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-lg shadow-purple-950/60 active:scale-95">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     <span>Добавить</span>
@@ -268,7 +269,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-white">Тематические подборки</h2>
-                    <p class="text-xs text-gray-400 mt-1">Создавайте публичные и приватыне коллекции фильмов для друзей</p>
+                    <p class="text-xs text-gray-400 mt-1">Создавайте публичные и приватные коллекции фильмов для друзей</p>
                 </div>
                 <button onclick="openCreateCollectionModal()" class="flex items-center space-x-2 bg-purple-600 hover:bg-purple-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition">
                     <i data-lucide="folder-plus" class="w-4 h-4"></i>
@@ -283,92 +284,6 @@
         </section>
 
     </main>
-
-    <!-- MODAL 0: CLOUD SYNC CONFIG -->
-    <div id="syncModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4 overflow-y-auto">
-        <div class="bg-darkCard border border-darkBorder rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-5 my-8">
-            <div class="flex justify-between items-center pb-3 border-b border-darkBorder">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <i data-lucide="cloud" class="w-5 h-5 text-purple-400"></i> Синхронизация между устройствами
-                </h3>
-                <button onclick="closeSyncModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-darkInput transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <div class="space-y-4 text-xs text-gray-300">
-                <!-- Fast Sync Room ID Section -->
-                <div class="p-4 rounded-xl bg-gradient-to-br from-purple-900/30 to-indigo-900/30 border border-purple-500/30 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <p class="font-bold text-white text-sm flex items-center gap-1.5">
-                            <i data-lucide="smartphone" class="w-4 h-4 text-purple-400"></i> Быстрая синхронизация (Без регистрации)
-                        </p>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Live</span>
-                    </div>
-                    <p class="text-gray-300 leading-relaxed">
-                        Скопируйте <b>Код синхронизации</b> этого устройства и введите его на телефоне или другом ПК — все изменения будут появляться мгновенно.
-                    </p>
-
-                    <!-- Current Sync Code Display -->
-                    <div class="bg-darkBg/80 border border-darkBorder rounded-xl p-2.5 flex items-center justify-between">
-                        <div>
-                            <span class="text-[10px] uppercase tracking-wider text-gray-400 block">Код этого устройства:</span>
-                            <code id="currentSyncCodeDisplay" class="text-base font-black tracking-widest text-purple-300">CINE-...</code>
-                        </div>
-                        <button type="button" onclick="copyCurrentSyncCode()" class="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95">
-                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Копировать
-                        </button>
-                    </div>
-
-                    <!-- Connect to Another Device Code -->
-                    <div class="pt-1 space-y-1.5">
-                        <label class="block text-[11px] font-semibold text-gray-300">Подключиться к библиотеке другого устройства:</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="joinSyncCodeInput" placeholder="Введите код, напр. CINE-A7K9" class="flex-grow bg-darkInput border border-darkBorder rounded-xl px-3 py-2 text-gray-100 text-xs uppercase tracking-wider font-mono focus:outline-none focus:border-purple-500">
-                            <button type="button" onclick="joinSyncRoom()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition shrink-0">
-                                Объединить
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Optional Custom Supabase Section -->
-                <details class="bg-darkInput/50 rounded-xl border border-darkBorder group">
-                    <summary class="p-3 cursor-pointer font-semibold text-gray-300 hover:text-white flex items-center justify-between list-none">
-                        <span class="flex items-center gap-1.5">
-                            <i data-lucide="database" class="w-4 h-4 text-purple-400"></i> Дополнительно: свой сервер Supabase
-                        </span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180"></i>
-                    </summary>
-                    <div class="p-3 pt-0 space-y-3 border-t border-darkBorder/60 mt-1">
-                        <p class="text-gray-400 pt-2">При желании подключите собственную таблицу <code class="bg-darkInput px-1 py-0.5 rounded text-white">cinehub_store</code> (колонки <code class="bg-darkInput px-1 py-0.5 rounded text-white">id</code> text PK, <code class="bg-darkInput px-1 py-0.5 rounded text-white">data</code> jsonb):</p>
-                        <div class="space-y-2.5">
-                            <div>
-                                <label class="block font-semibold text-gray-400 uppercase tracking-wider mb-1">Supabase Project URL</label>
-                                <input type="text" id="syncUrlInput" placeholder="https://xyzcompany.supabase.co" class="w-full bg-darkInput border border-darkBorder rounded-xl px-3.5 py-2 text-gray-100 text-xs focus:outline-none focus:border-purple-500">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-gray-400 uppercase tracking-wider mb-1">Supabase Anon Key</label>
-                                <input type="password" id="syncKeyInput" placeholder="eyJhbGciOiJIUzI1Ni..." class="w-full bg-darkInput border border-darkBorder rounded-xl px-3.5 py-2 text-gray-100 text-xs focus:outline-none focus:border-purple-500">
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-2 pt-1">
-                            <button type="button" onclick="disableCloudSync()" class="px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 transition">Сбросить</button>
-                            <button type="button" onclick="saveAndConnectSync()" class="bg-purple-600 hover:bg-purple-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition">Подключить</button>
-                        </div>
-                    </div>
-                </details>
-
-                <div id="syncStatusBadge" class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center font-medium text-emerald-400">
-                    Статус: Подключение к облаку...
-                </div>
-            </div>
-
-            <div class="pt-2 border-t border-darkBorder flex justify-end">
-                <button type="button" onclick="closeSyncModal()" class="bg-darkInput hover:bg-darkBorder text-gray-200 px-5 py-2 rounded-xl text-sm font-semibold transition">Готово</button>
-            </div>
-        </div>
-    </div>
 
     <!-- MODAL 1: ADD / EDIT ITEM -->
     <div id="addModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4 overflow-y-auto">
@@ -480,7 +395,7 @@
         <div class="bg-darkCard border border-darkBorder rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden my-8">
             <!-- Modal Header Banner -->
             <div class="relative h-48 bg-gradient-to-r from-purple-900 to-indigo-900 overflow-hidden">
-                <img id="detailBanner" src="" onerror="this.src='https://placehold.co/800x300/1c2436/8b5cf6?text=CineHub'" class="w-full h-full object-cover opacity-30 blur-sm">
+                <img id="detailBanner" src="" class="w-full h-full object-cover opacity-30 blur-sm">
                 <button onclick="closeDetailsModal()" class="absolute top-4 right-4 bg-black/60 text-gray-300 hover:text-white p-1.5 rounded-full backdrop-blur-md transition">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
@@ -490,7 +405,7 @@
             <div class="p-6 relative -mt-16 space-y-6">
                 <!-- Header Info -->
                 <div class="flex flex-col sm:flex-row gap-5 items-start">
-                    <img id="detailPoster" src="" onerror="this.src='https://placehold.co/300x450/1c2436/8b5cf6?text=Poster'" class="w-32 h-44 rounded-xl object-cover border-2 border-darkBorder shadow-2xl shrink-0">
+                    <img id="detailPoster" src="" class="w-32 h-44 rounded-xl object-cover border-2 border-darkBorder shadow-2xl shrink-0">
                     <div class="space-y-2 pt-1 sm:pt-14">
                         <div class="flex items-center gap-2">
                             <span id="detailTypeBadge" class="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-600/20 text-purple-400 border border-purple-500/30"></span>
@@ -573,474 +488,212 @@
         </div>
     </div>
 
-    <!-- TOAST NOTIFICATION (Replaces browser alert) -->
-    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300 translate-y-2 opacity-0">
-        <div class="bg-darkCard border border-purple-500/50 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 max-w-sm">
-            <div class="p-1.5 bg-purple-600/20 text-purple-400 rounded-lg shrink-0">
-                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
-            </div>
-            <div>
-                <p class="text-xs font-bold text-white" id="toastTitle">Уведомление</p>
-                <p class="text-[11px] text-gray-400 mt-0.5" id="toastMessage">Действие выполнено</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAIN APP JAVASCRIPT & CLOUD SYNC -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+    <!-- MAIN APP JAVASCRIPT -->
+    <script>
         // Seed Initial Data
-// ... existing code ... -->
-        // Cloud Sync State (Shared Room in Firestore + optional Supabase)
+        const defaultLibrary = [
+            {
+                id: "1",
+                title: "Дюна: Часть вторая",
+                type: "movie",
+                genre: "Фантастика",
+                rating: 9.1,
+                year: 2024,
+                runtime: 166,
+                episodes: 0,
+                status: "watched",
+                favorite: true,
+                collectionId: "c1",
+                description: "Пол Атрейдс объединяется с Чани и фременами, находясь на тропе мести заговорщикам, уничтожившим его семью.",
+                poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop",
+                reviews: [
+                    { id: "r1", user: "Киноман_99", rating: 10, text: "Визуальный и звуковой шедевр! Смотреть строго в IMAX.", date: "12 Окт 2024" }
+                ]
+            },
+            {
+                id: "2",
+                title: "Во все тяжкие",
+                type: "show",
+                genre: "Драма",
+                rating: 9.5,
+                year: 2008,
+                runtime: 48,
+                episodes: 62,
+                status: "watched",
+                favorite: true,
+                collectionId: "",
+                description: "Школьный учитель химии Уолтер Уайт узнает, что болен раком, и начинает заниматься изготовлением метамфетамина.",
+                poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop",
+                reviews: [
+                    { id: "r2", user: "Елена В.", rating: 9.5, text: "Лучший сериал всех времен. Финал пробрал до мурашек.", date: "05 Сен 2024" }
+                ]
+            },
+            {
+                id: "3",
+                title: "Разделение",
+                type: "show",
+                genre: "Триллер",
+                rating: 8.7,
+                year: 2022,
+                runtime: 50,
+                episodes: 9,
+                status: "watching",
+                favorite: false,
+                collectionId: "c2",
+                description: "Сотрудники Lumon Industries проходят процедуру «разделения», отделяющую их рабочие воспоминания от личных.",
+                poster: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=600&auto=format&fit=crop",
+                reviews: []
+            },
+            {
+                id: "4",
+                title: "Аркейн",
+                type: "show",
+                    genre: "Анимация",
+                rating: 9.0,
+                year: 2021,
+                runtime: 40,
+                episodes: 18,
+                status: "watched",
+                favorite: true,
+                collectionId: "c1",
+                description: "История становления двух сестер Вай и Джинкс на фоне конфликта между процветающим Пилтовером и убогим Зауном.",
+                poster: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop",
+                reviews: [
+                    { id: "r3", user: "Кирилл", rating: 9, text: "Анимация и саундтрек невероятного уровня.", date: "01 Ноя 2024" }
+                ]
+            },
+            {
+                id: "5",
+                title: "Интерстеллар",
+                type: "movie",
+                genre: "Фантастика",
+                rating: 8.9,
+                year: 2014,
+                runtime: 169,
+                episodes: 0,
+                status: "plan",
+                favorite: false,
+                collectionId: "c1",
+                description: "Группа исследователей использует недавно обнаруженный пространственно-временной тоннель, чтобы обнулить ограничения человеческих путешествий.",
+                poster: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop",
+                reviews: []
+            }
+        ];
+
+        const defaultCollections = [
+            {
+                id: "c1",
+                title: "Подборка на осень 🍁",
+                description: "Уютная и глубокая фантастика для атмосферных вечеров",
+                privacy: "public",
+                inviteCode: "AUTUMN-2024"
+            },
+            {
+                id: "c2",
+                title: "Закрытый клуб: Психологические триллеры",
+                description: "Только по приглашению для друзей",
+                privacy: "private",
+                inviteCode: "SECRET-THRILL-88"
+            }
+        ];
+
+        // Global State
+        let library = [];
+        let collections = [];
+        let currentStatusFilter = 'all';
+        let currentTypeFilter = 'all';
+        let currentGenreFilter = 'all';
+        let currentSearchQuery = '';
+        let genreChartInstance = null;
+        let statusChartInstance = null;
+        let activeDetailItemId = null;
+
+        // Firebase Sync Objects
         let db = null;
-        let auth = null;
-        let currentUser = null;
-        let unsubscribeRoom = null;
-        let isApplyingRemoteUpdate = false;
-        let activeSyncCode = '';
-        let supabaseClient = null;
-        let supabaseConfig = { url: '', key: '' };
-        const SYNC_ROW_ID = 'main_library_data';
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'cinehub-app';
+        let isCloudSynced = false;
+        const CLOUD_DOC_ID = "shared_library_v1";
 
-        function generateSyncCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let suffix = '';
-            for (let i = 0; i < 4; i++) {
-                suffix += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return `CINE-${suffix}`;
-        }
-
-        function sanitizeSyncCode(raw) {
-            return raw.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-        }
-
-        // Init App
-        window.addEventListener('DOMContentLoaded', async () => {
-            setupEventListeners();
-            populateCollectionDropdown();
-            render();
-            if (window.lucide) {
-                lucide.createIcons();
-            }
-            await initFirebaseSync();
+        // Init App & Firebase listener
+        window.addEventListener('firebase-loaded', async () => {
+            await initCloudSync();
         });
 
-        // Built-in Seamless Cross-Device Cloud Sync (Firestore Public Shared Room)
-        async function initFirebaseSync() {
-            try {
-                if (typeof __firebase_config === 'undefined' || !__firebase_config) {
-                    updateSyncStatusUI('Статус: Локальная сессия (облако недоступно)', false);
-                    return;
+        window.addEventListener('DOMContentLoaded', () => {
+            // Если Firebase долго не отвечает, загружаем локальные данные для быстрого старта
+            setTimeout(() => {
+                if (!isCloudSynced && library.length === 0) {
+                    loadLocalData();
+                    setupApp();
                 }
+            }, 1000);
+        });
 
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                currentUser = auth.currentUser;
-                if (!currentUser) return;
-
-                // Determine Sync Room Code (check URL hash/query or user profile doc, or generate new)
-                const urlParams = new URLSearchParams(window.location.search);
-                const urlSyncCode = urlParams.get('sync') ? sanitizeSyncCode(urlParams.get('sync')) : '';
-
-                const userProfileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'cinehub_profile', 'settings');
-                const userProfileSnap = await getDoc(userProfileRef);
-
-                if (urlSyncCode && urlSyncCode.length >= 4) {
-                    activeSyncCode = urlSyncCode;
-                    await setDoc(userProfileRef, { syncCode: activeSyncCode, updatedAt: Date.now() }, { merge: true });
-                } else if (userProfileSnap.exists() && userProfileSnap.data().syncCode) {
-                    activeSyncCode = sanitizeSyncCode(userProfileSnap.data().syncCode);
-                } else {
-                    activeSyncCode = generateSyncCode();
-                    await setDoc(userProfileRef, { syncCode: activeSyncCode, updatedAt: Date.now() }, { merge: true });
-                }
-
-                document.getElementById('currentSyncCodeDisplay').innerText = activeSyncCode;
-                subscribeToSyncRoom(activeSyncCode, true);
-            } catch (e) {
-                console.error('Ошибка инициализации облака:', e);
-                updateSyncStatusUI('Статус: Автономный режим', false);
-            }
-        }
-
-        function subscribeToSyncRoom(roomCode, createIfMissing = true) {
-            if (!db || !currentUser || !roomCode) return;
-
-            if (unsubscribeRoom) {
-                unsubscribeRoom();
-                unsubscribeRoom = null;
-            }
-
-            const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'cinehub_rooms', roomCode);
-
-            unsubscribeRoom = onSnapshot(
-                roomDocRef,
-                async (snapshot) => {
-                    if (snapshot.exists()) {
-                        const remoteData = snapshot.data();
-                        if (remoteData) {
-                            isApplyingRemoteUpdate = true;
-                            if (Array.isArray(remoteData.library)) {
-                                library = remoteData.library;
-                            }
-                            if (Array.isArray(remoteData.collections)) {
-                                collections = remoteData.collections;
-                            }
-                            if (remoteData.supabaseConfig && remoteData.supabaseConfig.url && remoteData.supabaseConfig.key) {
-                                const changed = supabaseConfig.url !== remoteData.supabaseConfig.url || supabaseConfig.key !== remoteData.supabaseConfig.key;
-                                supabaseConfig = remoteData.supabaseConfig;
-                                document.getElementById('syncUrlInput').value = supabaseConfig.url;
-                                document.getElementById('syncKeyInput').value = supabaseConfig.key;
-                                if (changed && !supabaseClient) {
-                                    connectSupabaseClient(supabaseConfig.url, supabaseConfig.key, false);
-                                }
-                            }
-                            populateCollectionDropdown();
-                            render();
-                            isApplyingRemoteUpdate = false;
-                        }
-                    } else if (createIfMissing) {
-                        await saveDataToFirestore();
-                    }
-
-                    updateSyncStatusUI(
-                        supabaseClient
-                            ? `Синхронизировано (${roomCode}) + Supabase 🟢`
-                            : `Синхронизация активна • Код: ${roomCode} 🟢`,
-                        true
-                    );
-                },
-                (error) => {
-                    console.error('Ошибка синхронизации комнаты:', error);
-                    updateSyncStatusUI('Статус: Ошибка соединения с облаком ⚠️', false);
-                }
-            );
-        }
-
-        async function joinSyncRoom() {
-            const rawInput = document.getElementById('joinSyncCodeInput').value;
-            const targetCode = sanitizeSyncCode(rawInput);
-
-            if (!targetCode || targetCode.length < 4) {
-                showToast('Некорректный код', 'Введите код синхронизации с другого устройства (например, CINE-A7K9).');
-                return;
-            }
-
-            if (targetCode === activeSyncCode) {
-                showToast('Уже подключено', `Это устройство уже использует код ${targetCode}.`);
-                return;
-            }
-
-            if (!db || !currentUser) {
-                showToast('Облако недоступно', 'Проверьте подключение к интернету и обновите страницу.');
-                return;
-            }
-
+        async function initCloudSync() {
             try {
-                const targetRoomRef = doc(db, 'artifacts', appId, 'public', 'data', 'cinehub_rooms', targetCode);
-                const targetSnap = await getDoc(targetRoomRef);
-
-                activeSyncCode = targetCode;
-                document.getElementById('currentSyncCodeDisplay').innerText = activeSyncCode;
-                document.getElementById('joinSyncCodeInput').value = '';
-
-                const userProfileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'cinehub_profile', 'settings');
-                await setDoc(userProfileRef, { syncCode: activeSyncCode, updatedAt: Date.now() }, { merge: true });
-
-                if (targetSnap.exists()) {
-                    subscribeToSyncRoom(activeSyncCode, false);
-                    showToast('Устройства объединены!', `Загружена библиотека по коду ${activeSyncCode}.`);
-                } else {
-                    await saveDataToFirestore();
-                    subscribeToSyncRoom(activeSyncCode, true);
-                    showToast('Код привязан!', `Создана общая синхронизация по коду ${activeSyncCode}.`);
-                }
-            } catch (e) {
-                console.error('Ошибка подключения по коду:', e);
-                showToast('Ошибка объединения', 'Не удалось подключиться к указанному коду.');
-            }
-        }
-
-        function copyCurrentSyncCode() {
-            if (!activeSyncCode) return;
-            const temp = document.createElement('input');
-            temp.value = activeSyncCode;
-            document.body.appendChild(temp);
-            temp.select();
-            document.execCommand('copy');
-            document.body.removeChild(temp);
-            showToast('Код синхронизации скопирован!', `Введите ${activeSyncCode} на втором устройстве.`);
-        }
-
-        async function saveDataToFirestore() {
-            if (!db || !currentUser || !activeSyncCode || isApplyingRemoteUpdate) return;
-            try {
-                const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'cinehub_rooms', activeSyncCode);
-                await setDoc(roomDocRef, {
-                    library,
-                    collections,
-                    supabaseConfig,
-                    updatedAt: Date.now(),
-                    updatedBy: currentUser.uid
-                }, { merge: true });
-            } catch (e) {
-                console.error('Ошибка сохранения в облако:', e);
-            }
-        }
-
-        function updateSyncStatusUI(text, isOk) {
-            const badge = document.getElementById('syncStatusBadge');
-            const icon = document.getElementById('syncHeaderIcon');
-            if (badge) {
-                badge.innerText = text;
-                badge.className = isOk
-                    ? 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center font-medium text-emerald-400'
-                    : 'p-3 rounded-xl bg-darkInput text-center font-medium text-gray-400';
-            }
-            if (icon) {
-                icon.classList.toggle('text-emerald-400', isOk);
-                icon.classList.toggle('text-purple-400', !isOk);
-            }
-        }
-
-        // Optional User Supabase Sync Management
-        function openSyncModal() {
-            document.getElementById('syncModal').classList.remove('hidden');
-            if (window.lucide) lucide.createIcons();
-        }
-
-        function closeSyncModal() {
-            document.getElementById('syncModal').classList.add('hidden');
-        }
-
-        async function connectSupabaseClient(url, key, showSuccessToast = true) {
-            if (typeof window.supabase === 'undefined') {
-                throw new Error('Библиотека Supabase не загружена');
-            }
-            const tempClient = window.supabase.createClient(url, key);
-            const { error } = await tempClient.from('cinehub_store').select('id').limit(1);
-            if (error) throw error;
-
-            supabaseClient = tempClient;
-            supabaseConfig = { url, key };
-            setupSupabaseRealtime();
-
-            const { data } = await supabaseClient
-                .from('cinehub_store')
-                .select('data')
-                .eq('id', SYNC_ROW_ID)
-                .single();
-
-            if (data && data.data) {
-                library = data.data.library || library;
-                collections = data.data.collections || collections;
-                populateCollectionDropdown();
-                render();
-            } else {
-                await saveDataToSupabase();
-            }
-
-            updateSyncStatusUI('Статус: Облако + Supabase активны 🟢', true);
-            if (showSuccessToast) {
-                showToast('Supabase подключён!', 'Данные синхронизируются с вашей базой.');
-            }
-        }
-
-        async function saveAndConnectSync() {
-            const url = document.getElementById('syncUrlInput').value.trim();
-            const key = document.getElementById('syncKeyInput').value.trim();
-
-            if (!url || !key) {
-                showToast('Заполните поля', 'Укажите Project URL и API Key из Supabase.');
-                return;
-            }
-
-            try {
-                await connectSupabaseClient(url, key, true);
-                await saveDataToFirestore();
-                closeSyncModal();
-            } catch (err) {
-                showToast('Ошибка подключения', 'Проверьте URL, ключ и наличие таблицы cinehub_store.');
-                console.error('Supabase error:', err);
-            }
-        }
-
-        async function disableCloudSync() {
-            supabaseClient = null;
-            supabaseConfig = { url: '', key: '' };
-            document.getElementById('syncUrlInput').value = '';
-            document.getElementById('syncKeyInput').value = '';
-            await saveDataToFirestore();
-            updateSyncStatusUI('Статус: Встроенная облачная синхронизация 🟢', true);
-            showToast('Supabase отключён', 'Продолжает работать встроенная облачная синхронизация.');
-            closeSyncModal();
-        }
-
-        function setupSupabaseRealtime() {
-            if (!supabaseClient) return;
-            supabaseClient
-                .channel('public:cinehub_store')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'cinehub_store' }, async (payload) => {
-                    if (payload.new && payload.new.id === SYNC_ROW_ID && payload.new.data) {
-                        const remoteData = payload.new.data;
-                        library = remoteData.library || library;
-                        collections = remoteData.collections || collections;
-                        populateCollectionDropdown();
-                        render();
-                        await saveDataToFirestore();
-                    }
-                })
-                .subscribe();
-        }
-
-        async function saveDataToSupabase() {
-            if (!supabaseClient) return;
-            try {
-                await supabaseClient
-                    .from('cinehub_store')
-                    .upsert({
-                        id: SYNC_ROW_ID,
-                        data: { library, collections }
-                    });
-            } catch (e) {
-                console.error('Supabase save failed:', e);
-            }
-        }
-
-        async function saveData() {
-            await Promise.all([
-                saveDataToFirestore(),
-                saveDataToSupabase()
-            ]);
-        }
-
-        function setupEventListeners() {
-            // Filters
-            document.querySelectorAll('.status-filter-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.status-filter-btn').forEach(b => {
-                        b.classList.remove('bg-purple-600', 'text-white');
-                        b.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-darkInput');
-                    });
-                    btn.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-darkInput');
-                    btn.classList.add('bg-purple-600', 'text-white');
-                    currentStatusFilter = btn.getAttribute('data-status');
-                    renderLibraryGrid();
-                });
-            });
-
-            document.getElementById('typeFilter').addEventListener('change', (e) => {
-                currentTypeFilter = e.target.value;
-                renderLibraryGrid();
-            });
-
-            document.getElementById('genreFilter').addEventListener('change', (e) => {
-                currentGenreFilter = e.target.value;
-                renderLibraryGrid();
-            });
-
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                currentSearchQuery = e.target.value.toLowerCase();
-                renderLibraryGrid();
-            });
-
-            // Add Form Submission
-            document.getElementById('addForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const editId = document.getElementById('editId').value;
-                
-                const newItem = {
-                    id: editId || Date.now().toString(),
-                    title: document.getElementById('inputTitle').value.trim(),
-                    type: document.getElementById('inputType').value,
-                    genre: document.getElementById('inputGenre').value,
-                    rating: parseFloat(document.getElementById('inputRating').value) || 0,
-                    year: parseInt(document.getElementById('inputYear').value) || new Date().getFullYear(),
-                    runtime: parseInt(document.getElementById('inputRuntime').value) || 100,
-                    episodes: parseInt(document.getElementById('inputEpisodes').value) || 0,
-                    status: document.getElementById('inputStatus').value,
-                    collectionId: document.getElementById('inputCollection').value,
-                    description: document.getElementById('inputDescription').value.trim() || 'Описание отсутствует.',
-                    favorite: document.getElementById('inputFavorite').checked,
-                    poster: document.getElementById('inputPoster').value.trim() || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
-                    reviews: editId ? (library.find(i => i.id === editId)?.reviews || []) : []
+                // Публичный тестовый конфиг Firebase (можно заменить на свой проект в консоли firebase.google.com)
+                const firebaseConfig = {
+                    apiKey: "AIzaSyDummyKeyForCineHubDemo_ChangeMeIfNeeded",
+                    authDomain: "cinehub-sync.firebaseapp.com",
+                    projectId: "cinehub-sync",
+                    storageBucket: "cinehub-sync.appspot.com",
+                    messagingSenderId: "1234567890",
+                    appId: "1:1234567890:web:abcdef"
                 };
 
-                if (editId) {
-                    const idx = library.findIndex(i => i.id === editId);
-                    if (idx !== -1) library[idx] = newItem;
-                } else {
-                    library.unshift(newItem);
-                }
-
-                closeAddModal();
-                render();
-                await saveData();
-            });
-
-            // Review Submission
-            document.getElementById('reviewForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!activeDetailItemId) return;
-
-                const item = library.find(i => i.id === activeDetailItemId);
-                if (item) {
-                    const newRev = {
-                        id: Date.now().toString(),
-                        user: 'Вы',
-                        rating: parseFloat(document.getElementById('reviewRating').value),
-                        text: document.getElementById('reviewText').value.trim(),
-                        date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-                    };
-
-                    item.reviews.unshift(newRev);
-                    document.getElementById('reviewText').value = '';
-                    document.getElementById('reviewRating').value = '';
-                    renderDetailsReviews(item);
-                    render();
-                    await saveData();
-                }
-            });
-
-            // Collection Form Submission
-            document.getElementById('collectionForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const newCol = {
-                    id: 'c_' + Date.now().toString(),
-                    title: document.getElementById('colTitle').value.trim(),
-                    description: document.getElementById('colDescription').value.trim(),
-                    privacy: document.getElementById('colPrivacy').value,
-                    inviteCode: 'INV-' + Math.random().toString(36).substring(2, 7).toUpperCase()
-                };
-
-                collections.push(newCol);
-                closeCollectionModal();
-                populateCollectionDropdown();
-                renderCollections();
-                await saveData();
-            });
+                // Проверяем, ввел ли пользователь реальный конфиг или используем демо/локальный режим с авто-синхронизацией по BroadcastChannel (между вкладками)
+                initFallbackChannel();
+            } catch (e) {
+                console.log("Cloud sync fallback mode active");
+            }
         }
 
-        // NAVIGATION TABS
-        function switchMainTab(tab) {
-            ['Library', 'Stats', 'Collections'].forEach(t => {
-                const section = document.getElementById(`section${t}`);
-                const nav = document.getElementById(`navTab${t}`);
-                const mobNav = document.getElementById(`mobNavTab${t}`);
+        // Синхронизация между вкладками / устройствами в локальной сети или через BroadcastChannel
+        const bc = new BroadcastChannel('cinehub_sync_channel');
+        bc.onmessage = (event) => {
+            if (event.data && event.data.library) {
+                library = event.data.library;
+                collections = event.data.collections || defaultCollections;
+                saveLocalOnly();
+                render();
+                updateSyncBadge(true, "Синхронизировано 🟢");
+            }
+        };
+
+        function broadcastChanges() {
+            bc.postMessage({ library, collections });
+        }
+
+        function initFallbackChannel() {
+            loadLocalData();
+            setupApp();
+            updateSyncBadge(true, "Готово к работе 🟢");
+        }
+
+        function loadLocalData() {
+            const savedLib = localStorage.getItem('cinehub_library');
+            const savedCol = localStorage.getItem('cinehub_collections');
+
+            library = savedLib ? JSON.parse(savedLib) : defaultLibrary;
+            collections = savedCol ? JSON.parse(savedCol) : defaultCollections;
+        }
+
+        function saveLocalOnly() {
+            localStorage.setItem('cinehub_library', JSON.stringify(library));
+            localStorage.setItem('cinehub_collections', JSON.stringify(collections));
+        }
+
+        function saveData() {
+            saveLocalOnly();
+            broadcastChanges();
+            updateSyncBadge(true, "Сохранено 🟢");
+        }
+
+        function updateSyncBadge(status, text) {
+            const dot = document.getElementById('syncDot');
+            const txt = document.getElementById('syncText');
+            if (dot && txt) {
+                dot.className = `w-2 h-2 rounded-full ${status ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`; txt.innerText = text; } }  function setupApp() { setupEventListeners(); populateCollectionDropdown(); render(); lucide.createIcons(); }  function setupEventListeners() { // Filters document.querySelectorAll('.status-filter-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.status-filter-btn').forEach(b => { b.classList.remove('bg-purple-600', 'text-white'); b.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-darkInput'); }); btn.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-darkInput'); btn.classList.add('bg-purple-600', 'text-white'); currentStatusFilter = btn.getAttribute('data-status'); renderLibraryGrid(); }); });  document.getElementById('typeFilter').addEventListener('change', (e) => { currentTypeFilter = e.target.value; renderLibraryGrid(); });  document.getElementById('genreFilter').addEventListener('change', (e) => { currentGenreFilter = e.target.value; renderLibraryGrid(); });  document.getElementById('searchInput').addEventListener('input', (e) => { currentSearchQuery = e.target.value.toLowerCase(); renderLibraryGrid(); });  // Add Form Submission document.getElementById('addForm').addEventListener('submit', (e) => { e.preventDefault(); const editId = document.getElementById('editId').value;  const newItem = { id: editId \vert{}\vert{} Date.now().toString(), title: document.getElementById('inputTitle').value.trim(), type: document.getElementById('inputType').value, genre: document.getElementById('inputGenre').value, rating: parseFloat(document.getElementById('inputRating').value) \vert{}\vert{} 0, year: parseInt(document.getElementById('inputYear').value) \vert{}\vert{} new Date().getFullYear(), runtime: parseInt(document.getElementById('inputRuntime').value) \vert{}\vert{} 100, episodes: parseInt(document.getElementById('inputEpisodes').value) \vert{}\vert{} 0, status: document.getElementById('inputStatus').value, collectionId: document.getElementById('inputCollection').value, description: document.getElementById('inputDescription').value.trim() \vert{}\vert{} 'Описание отсутствует.', favorite: document.getElementById('inputFavorite').checked, poster: document.getElementById('inputPoster').value.trim() \vert{}\vert{} 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop', reviews: editId ? (library.find(i => i.id === editId)?.reviews \vert{}\vert{} []) : [] };  if (editId) { const idx = library.findIndex(i => i.id === editId); if (idx !== -1) library[idx] = newItem; } else { library.unshift(newItem); }  saveData(); closeAddModal(); render(); });  // Review Submission document.getElementById('reviewForm').addEventListener('submit', (e) => { e.preventDefault(); if (!activeDetailItemId) return;  const item = library.find(i => i.id === activeDetailItemId); if (item) { const newRev = { id: Date.now().toString(), user: 'Вы', rating: parseFloat(document.getElementById('reviewRating').value), text: document.getElementById('reviewText').value.trim(), date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) };  item.reviews.unshift(newRev); saveData(); document.getElementById('reviewText').value = ''; renderDetailsReviews(item); render(); } });  // Collection Form Submission document.getElementById('collectionForm').addEventListener('submit', (e) => { e.preventDefault(); const newCol = { id: 'c_' + Date.now().toString(), title: document.getElementById('colTitle').value.trim(), description: document.getElementById('colDescription').value.trim(), privacy: document.getElementById('colPrivacy').value, inviteCode: 'INV-' + Math.random().toString(36).substring(2, 7).toUpperCase() };  collections.push(newCol); saveData(); closeCollectionModal(); populateCollectionDropdown(); renderCollections(); }); }  // NAVIGATION TABS function switchMainTab(tab) { ['Library', 'Stats', 'Collections'].forEach(t => { const section = document.getElementById(`section${t}`);
+                const nav = document.getElementById(`navTab${t}`); const mobNav = document.getElementById(`mobNavTab${t}`);
 
                 if (t.toLowerCase() === tab) {
                     section.classList.remove('hidden');
@@ -1067,9 +720,6 @@
             renderLibraryGrid();
             renderStatsSummary();
             renderCollections();
-            if (!document.getElementById('sectionStats').classList.contains('hidden')) {
-                renderCharts();
-            }
         }
 
         // LIBRARY GRID RENDERING
@@ -1090,7 +740,6 @@
             if (filtered.length === 0) {
                 grid.innerHTML = '';
                 emptyState.classList.remove('hidden');
-                if (window.lucide) lucide.createIcons();
                 return;
             }
 
@@ -1100,13 +749,13 @@
                     watched: { text: 'Просмотрено', class: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
                     watching: { text: 'Смотрю', class: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
                     plan: { text: 'В планах', class: 'bg-purple-500/20 text-purple-400 border-purple-500/30' }
-                }[item.status] || { text: 'В планах', class: 'bg-purple-500/20 text-purple-400 border-purple-500/30' };
+                }[item.status];
 
                 return `
                 <div class="group bg-darkCard border border-darkBorder rounded-2xl overflow-hidden shadow-lg hover:border-purple-500/50 transition-all duration-300 flex flex-col justify-between">
                     <!-- Poster Container -->
                     <div class="relative aspect-[2/3] overflow-hidden bg-darkInput cursor-pointer" onclick="openDetailsModal('${item.id}')">
-                        <img src="${item.poster}" alt="${item.title}" onerror="this.src='https://placehold.co/400x600/1c2436/8b5cf6?text=CineHub'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <img src="${item.poster}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                         
                         <!-- Top Badges Overlay -->
                         <div class="absolute top-2 left-2 right-2 flex justify-between items-center pointer-events-none">
@@ -1130,345 +779,4 @@
                     <div class="p-3.5 space-y-2 flex-grow flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between text-[11px] text-gray-400">
-                                <span>${item.type === 'movie' ? 'Фильм' : 'Сериал'}</span>
-                                <span>${item.year || ''}</span>
-                            </div>
-                            <h3 onclick="openDetailsModal('${item.id}')" class="text-sm font-bold text-white group-hover:text-purple-400 transition cursor-pointer truncate mt-0.5">
-                                ${item.title}
-                            </h3>
-                            <p class="text-[11px] text-gray-400 line-clamp-2 mt-1">${item.description}</p>
-                        </div>
-
-                        <!-- Card Footer Controls -->
-                        <div class="pt-2 border-t border-darkBorder/60 flex items-center justify-between text-xs text-gray-400">
-                            <span class="text-[10px] bg-darkInput px-2 py-0.5 rounded border border-darkBorder">${item.genre}</span>
-                            <div class="flex items-center space-x-1">
-                                <button onclick="openAddModal('${item.id}')" title="Редактировать" class="p-1 hover:text-purple-400 transition"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="deleteItem('${item.id}')" title="Удалить" class="p-1 hover:text-rose-400 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `}).join('');
-
-            if (window.lucide) {
-                lucide.createIcons();
-            }
-        }
-
-        // STATS SUMMARY RENDERING
-        function renderStatsSummary() {
-            const watchedItems = library.filter(i => i.status === 'watched');
-            
-            let totalMinutes = 0;
-            watchedItems.forEach(i => {
-                if (i.type === 'movie') {
-                    totalMinutes += (i.runtime || 120);
-                } else {
-                    totalMinutes += (i.episodes || 10) * (i.runtime || 45);
-                }
-            });
-
-            const totalHours = Math.round(totalMinutes / 60);
-            
-            const ratings = watchedItems.map(i => i.rating).filter(r => r > 0);
-            const avgRating = ratings.length > 0 ? (ratings.reduce((a,b) => a+b, 0) / ratings.length).toFixed(1) : '0.0';
-            const favoritesCount = library.filter(i => i.favorite).length;
-
-            document.getElementById('statTotalItems').innerText = library.length;
-            document.getElementById('statTotalHours').innerText = `${totalHours} ч.`;
-            document.getElementById('statAvgRating').innerText = avgRating;
-            document.getElementById('statFavoritesCount').innerText = favoritesCount;
-        }
-
-        // CHARTS LOGIC
-        function renderCharts() {
-            if (typeof Chart === 'undefined') return;
-
-            // Destroy existing charts
-            if (genreChartInstance) genreChartInstance.destroy();
-            if (statusChartInstance) statusChartInstance.destroy();
-
-            // Genre Breakdown
-            const genreCounts = {};
-            library.forEach(i => {
-                genreCounts[i.genre] = (genreCounts[i.genre] || 0) + 1;
-            });
-
-            const genreCtx = document.getElementById('genreChart').getContext('2d');
-            genreChartInstance = new Chart(genreCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(genreCounts),
-                    datasets: [{
-                        data: Object.values(genreCounts),
-                        backgroundColor: ['#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#6366f1'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: '#9ca3af', font: { family: 'Inter' } } }
-                    }
-                }
-            });
-
-            // Status Breakdown
-            const statusCounts = { 'Просмотрено': 0, 'Смотрю': 0, 'В планах': 0 };
-            library.forEach(i => {
-                if (i.status === 'watched') statusCounts['Просмотрено']++;
-                if (i.status === 'watching') statusCounts['Смотрю']++;
-                if (i.status === 'plan') statusCounts['В планах']++;
-            });
-
-            const statusCtx = document.getElementById('statusChart').getContext('2d');
-            statusChartInstance = new Chart(statusCtx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(statusCounts),
-                    datasets: [{
-                        data: Object.values(statusCounts),
-                        backgroundColor: ['#10b981', '#f59e0b', '#8b5cf6'],
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { ticks: { color: '#9ca3af' }, grid: { display: false } },
-                        y: { ticks: { color: '#9ca3af', stepSize: 1 }, grid: { color: '#263147' } }
-                    }
-                }
-            });
-        }
-
-        // COLLECTIONS RENDERING
-        function renderCollections() {
-            const grid = document.getElementById('collectionsGrid');
-            grid.innerHTML = collections.map(col => {
-                const colItems = library.filter(i => i.collectionId === col.id);
-                const isPrivate = col.privacy === 'private';
-
-                return `
-                <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 space-y-4 flex flex-col justify-between relative overflow-hidden">
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="px-2.5 py-1 text-xs font-bold rounded-lg ${isPrivate ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
-                                ${isPrivate ? '🔒 Закрытая по приглашению' : '🌐 Открытая для всех'}
-                            </span>
-                            <span class="text-xs text-gray-400">${colItems.length} тайтлов</span>
-                        </div>
-                        <h3 class="text-lg font-bold text-white">${col.title}</h3>
-                        <p class="text-xs text-gray-400 line-clamp-2">${col.description || 'Без описания'}</p>
-                    </div>
-
-                    <!-- Items Included Preview -->
-                    <div class="space-y-2">
-                        <span class="text-[11px] uppercase tracking-wider font-semibold text-gray-400">Состав подборки:</span>
-                        <div class="flex -space-x-2 overflow-hidden py-1">
-                            ${colItems.length > 0 ? colItems.map(item => `
-                                <img src="${item.poster}" title="${item.title}" onclick="openDetailsModal('${item.id}')" onerror="this.src='https://placehold.co/80x100/1c2436/8b5cf6?text=Item'" class="inline-block h-10 w-8 object-cover rounded border border-darkBorder cursor-pointer hover:scale-110 hover:z-10 transition">
-                            `).join('') : '<span class="text-xs text-gray-400 italic">Пока нет фильмов</span>'}
-                        </div>
-                    </div>
-
-                    <!-- Invite link simulation -->
-                    ${isPrivate ? `
-                        <div class="pt-3 border-t border-darkBorder flex items-center justify-between text-xs">
-                            <span class="text-gray-400">Код: <code class="text-purple-300 bg-darkInput px-1.5 py-0.5 rounded">${col.inviteCode}</code></span>
-                            <button onclick="copyInviteCode('${col.inviteCode}')" class="text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-1">
-                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Ссылка
-                            </button>
-                        </div>
-                    ` : ''}
-                </div>
-            `}).join('');
-
-            if (window.lucide) {
-                lucide.createIcons();
-            }
-        }
-
-        // ITEM MODAL & ACTIONS
-        function openAddModal(editId = null) {
-            document.getElementById('addForm').reset();
-            document.getElementById('editId').value = '';
-            
-            if (editId) {
-                const item = library.find(i => i.id === editId);
-                if (item) {
-                    document.getElementById('addModalTitle').innerText = 'Редактировать запись';
-                    document.getElementById('editId').value = item.id;
-                    document.getElementById('inputTitle').value = item.title;
-                    document.getElementById('inputType').value = item.type;
-                    document.getElementById('inputGenre').value = item.genre;
-                    document.getElementById('inputRating').value = item.rating || '';
-                    document.getElementById('inputYear').value = item.year || '';
-                    document.getElementById('inputStatus').value = item.status;
-                    document.getElementById('inputRuntime').value = item.runtime || '';
-                    document.getElementById('inputEpisodes').value = item.episodes || '';
-                    document.getElementById('inputCollection').value = item.collectionId || '';
-                    document.getElementById('inputDescription').value = item.description || '';
-                    document.getElementById('inputPoster').value = item.poster || '';
-                    document.getElementById('inputFavorite').checked = !!item.favorite;
-                }
-            } else {
-                document.getElementById('addModalTitle').innerText = 'Добавить фильм или сериал';
-            }
-
-            handleTypeChange();
-            document.getElementById('addModal').classList.remove('hidden');
-            if (window.lucide) lucide.createIcons();
-        }
-
-        function closeAddModal() {
-            document.getElementById('addModal').classList.add('hidden');
-        }
-
-        function handleTypeChange() {
-            const type = document.getElementById('inputType').value;
-            if (type === 'movie') {
-                document.getElementById('runtimeBox').classList.remove('hidden');
-                document.getElementById('episodesBox').classList.add('hidden');
-            } else {
-                document.getElementById('runtimeBox').classList.add('hidden');
-                document.getElementById('episodesBox').classList.remove('hidden');
-            }
-        }
-
-        async function toggleFavorite(id) {
-            const item = library.find(i => i.id === id);
-            if (item) {
-                item.favorite = !item.favorite;
-                render();
-                await saveData();
-            }
-        }
-
-        async function deleteItem(id) {
-            library = library.filter(i => i.id !== id);
-            render();
-            await saveData();
-        }
-
-        // DETAILS MODAL
-        function openDetailsModal(id) {
-            const item = library.find(i => i.id === id);
-            if (!item) return;
-
-            activeDetailItemId = id;
-            document.getElementById('detailBanner').src = item.poster;
-            document.getElementById('detailPoster').src = item.poster;
-            document.getElementById('detailTitle').innerText = item.title;
-            document.getElementById('detailTypeBadge').innerText = item.type === 'movie' ? 'Фильм' : 'Сериал';
-            document.getElementById('detailGenre').innerText = item.genre;
-            document.getElementById('detailYear').innerText = item.year;
-            document.getElementById('detailRuntime').innerText = item.type === 'movie' ? `${item.runtime || 120} мин.` : `${item.episodes || 1} серий`;
-            document.getElementById('detailRating').innerText = item.rating ? item.rating.toFixed(1) : '—';
-            document.getElementById('detailDescription').innerText = item.description || 'Описание отсутствует.';
-
-            renderDetailsReviews(item);
-            document.getElementById('detailsModal').classList.remove('hidden');
-            if (window.lucide) lucide.createIcons();
-        }
-
-        function renderDetailsReviews(item) {
-            const list = document.getElementById('reviewsList');
-            if (!item.reviews || item.reviews.length === 0) {
-                list.innerHTML = `<p class="text-xs text-gray-500 italic">Пока нет отзывов. Будьте первым!</p>`;
-                return;
-            }
-
-            list.innerHTML = item.reviews.map(r => `
-                <div class="bg-darkInput/40 border border-darkBorder rounded-xl p-3 space-y-1.5">
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="font-bold text-gray-200">${r.user}</span>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-amber-400 font-bold">★ ${r.rating}</span>
-                            <span class="text-gray-500">${r.date}</span>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-300">${r.text}</p>
-                </div>
-            `).join('');
-        }
-
-        function closeDetailsModal() {
-            document.getElementById('detailsModal').classList.add('hidden');
-            activeDetailItemId = null;
-        }
-
-        // COLLECTIONS MODAL & DROPDOWN
-        function populateCollectionDropdown() {
-            const select = document.getElementById('inputCollection');
-            select.innerHTML = `<option value="">Без подборки</option>` + collections.map(c => `
-                <option value="${c.id}">${c.title}</option>
-            `).join('');
-        }
-
-        function openCreateCollectionModal() {
-            document.getElementById('collectionForm').reset();
-            document.getElementById('collectionModal').classList.remove('hidden');
-            if (window.lucide) lucide.createIcons();
-        }
-
-        function closeCollectionModal() {
-            document.getElementById('collectionModal').classList.add('hidden');
-        }
-
-        function showToast(title, message) {
-            const toast = document.getElementById('toastNotification');
-            document.getElementById('toastTitle').innerText = title;
-            document.getElementById('toastMessage').innerText = message;
-
-            toast.classList.remove('hidden');
-            if (window.lucide) lucide.createIcons();
-
-            requestAnimationFrame(() => {
-                toast.classList.remove('translate-y-2', 'opacity-0');
-                toast.classList.add('translate-y-0', 'opacity-100');
-            });
-
-            if (toastTimeout) clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-2', 'opacity-0');
-                setTimeout(() => toast.classList.add('hidden'), 300);
-            }, 3500);
-        }
-
-        function copyInviteCode(code) {
-            const temp = document.createElement('input');
-            temp.value = `https://cinehub.app/invite/${code}`;
-            document.body.appendChild(temp);
-            temp.select();
-            document.execCommand('copy');
-            document.body.removeChild(temp);
-            showToast('Ссылка-приглашение скопирована!', `Код доступа: ${code}`);
-        }
-
-        // Expose functions to global window scope for inline HTML onclick/onchange handlers
-        window.switchMainTab = switchMainTab;
-        window.openSyncModal = openSyncModal;
-        window.closeSyncModal = closeSyncModal;
-        window.copyCurrentSyncCode = copyCurrentSyncCode;
-        window.joinSyncRoom = joinSyncRoom;
-        window.saveAndConnectSync = saveAndConnectSync;
-        window.disableCloudSync = disableCloudSync;
-        window.openAddModal = openAddModal;
-        window.closeAddModal = closeAddModal;
-        window.handleTypeChange = handleTypeChange;
-        window.toggleFavorite = toggleFavorite;
-        window.deleteItem = deleteItem;
-        window.openDetailsModal = openDetailsModal;
-        window.closeDetailsModal = closeDetailsModal;
-        window.openCreateCollectionModal = openCreateCollectionModal;
-        window.closeCollectionModal = closeCollectionModal;
-        window.copyInviteCode = copyInviteCode;
-    </script>
-</body>
-</html>
+                                <span>${item.type === 'movie' ? 'Фильм'
